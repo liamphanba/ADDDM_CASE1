@@ -1,0 +1,586 @@
+---
+title: "Case Study 1 - Non-Linear Regression"
+author: "Michael Daniel Bigler and Liam Arthur Phan"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::downcute:
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(
+	message = FALSE,
+	warning = FALSE,
+	include = TRUE,
+	fig.align = "center")
+rm(list = ls())
+cat("\014")
+
+```
+
+<break>
+
+> Goal: Estimate an experience curve with non-linear regression analysis, forecast variable cost development based on the estimated regression equation.
+
+# Packages
+
+> In the following all the packages needed for this case study are loaded. 
+
+```{r packages}
+
+library(ggplot2)
+library(DT)
+library(jtools)
+library(kableExtra)
+
+```
+
+# Exercise 1
+
+> In Exercise 1 we get to know the data. We will show that a multiplicative model can be used for the data presented and how to transform the data such that we can use a linear model. 
+
+## Data
+
+> Down below we have a look at the presented data of the prices of solar panels according to the cumulative production quantities. The source is thereby listed below. 
+
+> Source: **Advanced Data Driven Decision Making** [S401024](https://moodle.unige.ch/course/view.php?id=2675 "2675") - University of Geneva (GSEM)
+>
+> Marcel Paulssen, Professor\
+> Fereshteh Vahidi, Teaching Assistant\
+> Anastasia Floru, Teaching Assistant
+
+### Table
+
+> Here we see the data in the form of a table sorted from smallest cumulative quantity to biggest.
+
+```{r load data}
+
+df_original <- read.csv('Case_Study_1.csv')
+datatable(df_original)
+
+df_log <- df_original
+df <- df_original
+
+```
+
+> As we can not see a lot based on the table we plot the data in a scatterplot. 
+
+### Scatterplot
+
+> Here we see the scatterplot of the data with the cumulative quantity of produced solarpanels on the x axis and the corresponding produciton costs on the y axis. 
+
+```{r Scatter plot}
+
+A <- df$manufacturing_cost[1]
+#A <- 2772.258
+b <- mean((log(df$manufacturing_cost)-log(A))/log(df$number_of_solar_panels))
+#b <- -0.1730591
+
+experience_curve <- function(X, A, b){
+  Y <- A*X^b
+  return(Y)
+}
+
+df$Y_func <- experience_curve(df$number_of_solar_panels, A, b)
+  
+Plot1 <- ggplot(df, aes(x=number_of_solar_panels, y=manufacturing_cost)) + geom_point(color="#32A287") + theme_minimal() + labs(title = "Experience Curve",subtitle = "Scatterplot", x="Solar Panels", y="Manufacturing Cost", caption = "Data: Case_Study_1.csv") 
+
+Plot1
+
+```
+
+> We see that there is a decresing trend which is not linear but curved. 
+
+#### Question 1.1
+
+> Does the multiplicative learning model which assumes the following relationship: $$Y = AX^b$$ apply to this data set?
+
+#### Answer
+
+> To answer this question we will plot an example of a multiplicative model on example data.
+
+```{r multiplicative model}
+multiplicative_model <- function(A,X,b){
+  Y = A*(X**b)
+  return(Y)
+}
+
+X <- 1:2500
+Y <- multiplicative_model(1300, X, -0.2)
+example_multiplicative_model <- as.data.frame(cbind(X,Y))
+
+ggplot(example_multiplicative_model, aes(x=X, y=Y)) +
+  geom_line(color="#32A287") + theme_minimal() + labs(title = "Multiplicative Model")
+```
+
+> As we can observe from the plot the form of the scatterplot from before resembles the form of the examplative plot from the multiplicative model. The best values of the parameters A and b for a good fit of the model is yet to be defined and will be done in the course of this case study. 
+
+#### Question 1.2
+
+> So the question now is how to transform the data in order to get a linear relationship.
+
+#### Answer
+
+> Multiplicative Learning Model:
+
+$$
+Y = AX^b
+$$
+
+> We want a linear relationship, thus we do a log transformation which gives us the following formula:
+
+$$
+\log(Y) = \log(A) + b*\log(X)
+$$
+
+> We see that this formula follows one of a linear model. 
+
+## Data Log transformed
+
+> To see this linear relationship we do a log transformation of both of the variables and show the table and scatterplot again with the transformed data.
+
+```{r Data Transformation}
+
+df_log$number_of_solar_panels <- log(df_log$number_of_solar_panels)
+df_log$manufacturing_cost <- log(df_log$manufacturing_cost)
+
+```
+
+### Table
+
+> Here we see the table of the log transformed data.
+
+```{r Table Data Log}
+
+datatable(round(df_log,2))
+
+```
+
+### Scatterplot
+
+> To see the relationship between the variables we again do a scatterplot of the data. 
+
+```{r Scatter plot Log}
+
+A_log <- df_log$manufacturing_cost[1]
+
+Plot2 <- ggplot(df_log, aes(x=number_of_solar_panels, y=manufacturing_cost)) + geom_point(color="#32A287") + theme_minimal() + labs(title = "Experience Curve - Log Data",subtitle = "Scatterplot", x="log(Number of Solar Panels)", y="log(Manufacturing Cost)", caption = "Data: Case_Study_1.csv")
+
+Plot2
+
+```
+
+> We can observe that there is no more curve and that the scatter follows more or less a straight line. 
+
+# Exercise 2
+
+> In Exercise 2 we focus on a linear regression on the data as well as the estimation of the parameter A and b. 
+
+## Linear Regression
+
+> We will now fit a linear regression to the log transformed data and then comment the results of the regression. 
+
+### Model
+
+> Here we fit a Log-Log Model with No Fixed Intercept.
+
+```{r Linear Regression Free Intercept}
+
+fit_2 <- lm(df_log$manufacturing_cost  ~ ., df_log)
+
+intercept_log_2 <- fit_2$coefficients[1]
+b_log_2 <- fit_2$coefficients[2]
+
+summ(fit_2)
+
+```
+
+#### Question 2.1
+
+> Interpret the results of the regression analysis
+
+#### Answer
+
+> -   R²: The coefficient of determination, which indicates the proportion of the variance in the dependent variable that can be explained by the independent variable(s). In this case, **95%** of the variance in manufacturing cost can be explained by the number of solar panels used.
+>
+> -   Adj. R²: The adjusted R² value, which takes into account the number of independent variables in the model. It is similar to R² but penalizes the addition of extraneous variables that do not improve the model's explanatory power.
+>
+> -   Standard errors: The standard error of the estimate (SE) is a measure of the precision of the regression estimates. It indicates the average amount that the actual manufacturing costs differ from the predicted values based on the regression equation.
+>
+> -   Intercept: The estimated constant value of the dependent variable when the independent variable is zero. In this case, the intercept is **7.85** which corresponds to **2565.734** in correct scale, that would be the cost of the first unit produced.
+>
+> -   number_of_solar_panels: The estimated slope coefficient, indicating how much the dependent variable changes for a increase in the independent variable in %. The slope coefficient is **-0.15**, that would mean the cost of manufacturing decrease by **15%** when we increase the number of panels produced by **1%**.
+>
+> -   t-value: The t-statistic is a measure of the significance of the regression coefficients. It tests the hypothesis that the true coefficient is zero.
+>
+> -   p-value: The p-value is the probability of obtaining the observed t-value (or more extreme) under the null hypothesis that the true coefficient is zero. A low p-value indicates that the coefficient is statistically significant and can be considered as a predictor of the dependent variable. In this case, both the intercept and the number of solar panels are significant predictors of manufacturing cost, with p-values of 0.00.
+
+#### Questions 2.2
+
+> How well does the model explain the data?
+
+#### Answer
+
+> Since R² and Adj. R² (over 0.7), as well as p-values (under 0.05) of our estimates are all statistically significant, we can say that our model is a good fit to our log data.
+
+### Plot
+
+> Here we plot the regression on top of the logged data. 
+
+```{r Log-Linear Regression 2}
+
+Plot3 <- ggplot(df_log, aes(x=number_of_solar_panels, y=manufacturing_cost)) + geom_point(color="#32A287") + theme_minimal() + labs(title = "Experience Curve - Log Data",subtitle = "Linear Regression", x="log(Number of Solar Panels)", y="log(Manufacturing Cost)", caption = "Data: Case_Study_1.csv") + geom_abline(intercept = intercept_log_2, slope = b_log_2, color="#F0C987", size=1) 
+
+Plot3 
+
+```
+
+> We see that the model fits the data well. 
+
+### Homoskedasticity
+
+> To enusre that our results from before are good we check the residuals of the regression. 
+
+```{r Homoskedasticity Check}
+
+Residuals_Plot <- ggplot(fit_2, aes(x = .fitted, y = .resid)) +
+  geom_point(color="#32A287") +
+  geom_hline(yintercept = 0, color ="#F0C987") + theme_minimal() + labs(title = "Homoskedasticity Check",subtitle = "Residuals", x="Fitted Values", y="Residuals", caption = "Data: Case_Study_1.csv")
+
+Residuals_Plot
+
+```
+
+> In the case of our model, based on the residual plot, there is no visible pattern or trend in the residuals, and they appear to be scattered randomly around the horizontal line at zero. This suggests that the assumption of homoskedasticity holds, and there is no evidence of heteroskedasticity in the model.
+>
+> Therefore, we can conclude that the model satisfies the assumption of homoskedasticity, which is an important assumption for obtaining unbiased and efficient estimates of the regression coefficients and standard errors.
+
+## Learning Rate & Progress Ratio
+
+> Next we will estimate the learning rate based on the results of our regression. In our regression we estimated the parameter b which is needed to get the progress ratio and therefore the learning rate.
+
+$$ Progress \ Ratio = 2^{b} $$
+
+$$ Learning \ Rate = 1-Progress \ Ratio $$
+
+> Following these formulas we retrieve the values shown below for the Progress Ratio and the Learning Rate. 
+
+```{r Learning Rate & Progress Ratio}
+
+Progress_Ratio <- 2^(fit_2$coefficients[2])
+Learning_Rate <- 1-Progress_Ratio
+
+PR_LR <- data.frame(Progress_Ratio,Learning_Rate)
+
+colnames(PR_LR)[1] <- "Progress Ratio %"
+colnames(PR_LR)[2] <- "Learning Rate %"
+
+rownames(PR_LR)[1] <- "Solar Panels Production"
+
+datatable(100*round(PR_LR,3))
+
+```
+
+## Price of first solar panel
+
+> The other missing parameter of the multiplicative model is the price of the first produced solar panel (Intercept). To get this parameter we need to do the following transformation on the intercept:
+
+$$ Price \ of \ first \ solar \ panel = exp(Intercept) $$ 
+
+> When we follow the formula above we get the following value for the first price:
+
+```{r first price of solar panel}
+A <- data.frame(exp(fit_2$coefficients[1]))
+colnames(A)[1] <- "Intercept"
+
+datatable(round(A,3))
+```
+
+## Plot to Original Data
+
+> As all of the parameters for the multiplicative model are now defined we can plot the multiplicative model to the original data.
+
+```{r Plot with Estimated Coefficient}
+
+# Intercept Exp()
+A <- exp(fit_2$coefficients[1])
+
+X_m <- seq(0,2200,1)
+
+Y_m <- A*X_m^(fit_2$coefficients[2])
+
+Multiplicate_Model <- data.frame(X_m,Y_m)
+Multiplicate_Model$Y_m[1] <- A
+
+colnames(Multiplicate_Model)[1] <- "number_of_solar_panels"
+colnames(Multiplicate_Model)[2] <- "manufacturing_cost"
+
+Plot_5 <- ggplot(df, aes(x=number_of_solar_panels, y=manufacturing_cost)) + geom_point(color="#32A287") + theme_minimal() + labs(title = "Experience Curve",subtitle = "Multiplicative Model - Parameters From Log-Log Linear Regression", x="Number of Solar Panels", y="Manufacturing Cost", caption = "Data: Case_Study_1.csv") 
+ 
+Plot_5 + geom_line(Multiplicate_Model, mapping=aes(number_of_solar_panels, manufacturing_cost), color="#F0C987")
+
+```
+
+> We see that the model fits the data very well and that the answer to the question 1.1 was correct. 
+
+## Final Parameters of the Multiplicative Model - Experience Curve
+
+> Down below we will show the final parameters of the multiplicative model. 
+
+```{r Final Parameters}
+
+slope_b <- fit_2$coefficients[2]
+
+Parameters <- data.frame(A,slope_b)
+
+colnames(Parameters)[1] <- "Intercept"
+colnames(Parameters)[2] <- "b"
+
+rownames(Parameters)[1] <- " Multiplicative Model - Parameters"
+
+datatable(round(Parameters,3))
+
+```
+
+# Exercise 3
+
+> In exercise 3 we will now estimate the manufacturing costs of Heliotronics for the production of the 400 solar panels for the Swiss client. The estimation is based on the expected production until April 2022. 
+
+#### Question 3.1
+
+> Estimate the average production cost per solar panel for 4700, 4800, 4900 and 5000 units and compute their mean.
+
+## Predict Future Costs of Solar Panels
+
+> To estimate the average production cost of the 400 solar panels we need to predict the production cost for the cumulative production quantities up until 5000. This is due to Heliontronics expected production until the production of the solar panels for Switzerland. Down below we do this prediciton. 
+
+```{r Predict}
+
+values <- seq(2200, 5000, 100)
+
+targets <- data.frame(number_of_solar_panels = values)
+
+targets$number_of_solar_panels <- log(targets$number_of_solar_panels)
+
+predictions <- predict.lm(fit_2, newdata = targets)
+
+predictions_final <- exp(predictions)
+
+PREDICTIONS <- data.frame(values, predictions_final)
+
+colnames(PREDICTIONS)[1] ="number_of_solar_panels"
+colnames(PREDICTIONS)[2] ="manufacturing_cost"
+
+PREDICTIONS_FINAL <- rbind(df_original,PREDICTIONS)
+
+x_range <- c(0, 2200)
+
+PREDICTIONS_FINAL$color_range <- ifelse(PREDICTIONS_FINAL$number_of_solar_panels >= x_range[1] & PREDICTIONS_FINAL$number_of_solar_panels <= x_range[2], "Data", "Predictions")
+
+Plot6 <- ggplot(PREDICTIONS_FINAL, aes(x=number_of_solar_panels, y=manufacturing_cost, color = PREDICTIONS_FINAL$color_range)) + geom_point() + scale_color_manual(values = c("Data" = "#32A287", "Predictions" = "#F0C987")) + theme_minimal()+ labs(title = "Experience Curve",subtitle = "Predictions From Linear Regression (Log to Standard)", x="Number of Solar Panels", y="Manufacturing Cost", caption = "Data: Case_Study_1.csv", color = "") 
+
+X_m <- seq(0,2200,1)
+
+Y_m <- exp(fit_2$coefficients[1])*X_m^(fit_2$coefficients[2])
+
+Multiplicate_Model <- data.frame(X_m,Y_m)
+Multiplicate_Model$Y_m[1] <- exp(fit_2$coefficients[1])
+
+colnames(Multiplicate_Model)[1] <- "number_of_solar_panels"
+colnames(Multiplicate_Model)[2] <- "manufacturing_cost"
+
+Plot6 + geom_line(Multiplicate_Model, mapping=aes(number_of_solar_panels, manufacturing_cost), color="#F0C987")
+
+```
+
+## Table Of Future Costs of Solar Panels
+
+> As we only need the costs for the cumulative production quantities from 4700 until 5000 to estimate the average cost for the 400 panels we only show these 4 values in the table below. 
+
+```{r Table Of Predictions}
+
+datatable(round(PREDICTIONS_FINAL[PREDICTIONS_FINAL$number_of_solar_panels %in% c(4700, 4800, 4900, 5000), c(1,2)], 2))
+
+```
+
+## Mean Cost Future Solar Panels
+
+> To get the estimated price for the 400 panels ordered by Switzerland we average the cost of the production for the panels from 4700 until 5000.
+
+```{r Mean Of Predictions}
+
+Targets_1 <- c(4700, 4800, 4900, 5000)
+
+Targets_Costs <- PREDICTIONS_FINAL$manufacturing_cost[PREDICTIONS_FINAL$number_of_solar_panels %in% Targets_1]
+
+Target_Mean <- mean(Targets_Costs)
+
+```
+
+> The mean cost of future productions of solar panels is `r round(Target_Mean,2)`
+
+# Exercise 4
+
+> In exercise 4 we compute a 95% confidence intervall of the expected value which shows what kind of deviations could be expected. 
+
+## Confidence Interval (95%)
+
+> Here we compute the 95% confidence interval of the regression. 
+
+```{r Confidence Interval}
+
+Confidence_95_b <- confint(fit_2, 2, level = 0.95)
+
+Confidence_95_intercept <- confint(fit_2, 1, level = 0.95)
+
+b_upper <- Confidence_95_b[1,1]
+
+b_lower <- Confidence_95_b[1,2]
+
+intercept_upper <- exp(Confidence_95_intercept [1,1])
+
+intercept_lower <- exp(Confidence_95_intercept[1,2])
+
+```
+
+### Of Parameter b
+
+> With 95% certainty the value of the parameter b will be in between `r round(b_lower,2)` and `r round(b_upper,2)`. 
+
+### Of A (Intercept)
+
+> Similarily the value of A will be in between `r round(intercept_lower,2)`and `r round(intercept_upper,2)` with 95 certainty. 
+
+## Linear Regression with Confidence Interval
+
+> Here we now show the results of the linear regression as well as the calculation of the confidence interval. 
+
+### Plot with Log-Log Linear Regression
+
+> First we show the regression line with the confidence intervals on the log transformed data. 
+
+```{r Log-Linear Regression CI}
+
+Plot8 <- ggplot(df_log, aes(x=number_of_solar_panels, y=manufacturing_cost)) + geom_point(color="#32A287") + theme_minimal() + labs(title = "Experience Curve - Log Data",subtitle = "Linear Regression", x="log(Number of Solar Panels)", y="log(Manufacturing Cost)", caption = "Data: Case_Study_1.csv") + geom_smooth(method = "lm", se = TRUE, level = 0.95, color="#F0C987") + annotate("text", x = 7, y = 7.05, label = "95% Confidence Interval", color="black")
+
+Plot8 
+
+```
+
+### Linear Regression On Original Data with Confidence Interval
+
+> Now we show a table of the estimates of the regression model and the confidence intervals before we plot the data on to a scatter plot.
+
+#### Table Of Confidence Interval with 95%
+
+> Here we see the table of the estimates and the confidence intervals. 
+
+```{r Confidence Interval Dataframe}
+
+X_CI <- seq(0,2200,1)
+
+X_CI_Log <- data.frame(log(X_CI))
+
+colnames(X_CI_Log)[1] <- "number_of_solar_panels"
+
+CI95 <- predict(fit_2, X_CI_Log, interval = "confidence", level = 0.95)
+
+CI95 <- data.frame(CI95)
+
+CI95 <- exp(CI95)
+
+CI95 <- cbind(X_CI, CI95)
+
+colnames(CI95)[1] <- "number_of_solar_panels"
+colnames(CI95)[2] <- "manufacturing_cost"
+colnames(CI95)[3] <- "lower"
+colnames(CI95)[4] <- "upper"
+
+datatable(round(CI95,2))
+
+```
+
+#### Plot 
+
+> In the following we see the final scatterplot which shows the origianl data, the fitted regressions as well as the confidence intervals. 
+
+```{r plot with CI from Log log Regression on Original Data}
+
+Plot_5.1 <- ggplot(df, aes(x=number_of_solar_panels, y=manufacturing_cost)) + geom_point(color="#32A287") + theme_minimal() + labs(title = "Experience Curve",subtitle = "Multiplicative Model - Parameters From Log-Log Linear Regression", x="Number of Solar Panels", y="Manufacturing Cost", caption = "Data: Case_Study_1.csv") + geom_line(Multiplicate_Model, mapping=aes(number_of_solar_panels, manufacturing_cost), color="#F0C987")
+ 
+Plot_5.1 + geom_line(CI95, mapping=aes(number_of_solar_panels, lower), color="#A63D40",linetype = "dashed") + geom_line(CI95, mapping=aes(number_of_solar_panels, upper), color="#A63D40",linetype = "dashed") + annotate("text", x = 1500, y = 1100, label = "95% Confidence Interval", color="#A63D40") + ylim(700,1300)
+
+``` 
+
+## Average Cost of Predictions with Confidence Interval 95%
+
+> Having calculated the confidene intervals for the whole model we can now compute the confidence intervals for the estimated average price of production for the 400 solar panels.  
+
+### Table Of Predictions 
+
+> Here we see a table of the predictions with their upper and lower confidence intervals. 
+
+```{r Confidence Interval Dataframe 2}
+
+targets <- c(4700, 4800, 4900, 5000)
+
+targets <- data.frame(targets)
+
+colnames(targets)[1] <- "number_of_solar_panels"
+
+targets$number_of_solar_panels <- log(targets$number_of_solar_panels)
+
+CI95 <- predict(fit_2, targets, interval = "confidence", level = 0.95)
+
+CI95 <- data.frame(CI95)
+
+CI95 <- exp(CI95)
+
+CI95 <- cbind(exp(targets), CI95)
+
+colnames(CI95)[1] <- "number_of_solar_panels"
+colnames(CI95)[2] <- "manufacturing_cost"
+colnames(CI95)[3] <- "lower"
+colnames(CI95)[4] <- "upper"
+
+datatable(round(CI95,2))
+
+```
+
+### Mean Cost Of Future Solar Panels Production
+
+> Lastly we can now see the average production cost with the upper and lower bound at 95% certainty. 
+
+```{r Mean Cost Of Future Solar Panels Production with Confidence Interval Of 95%}
+
+
+Mean_CI_Lower <- mean(CI95$lower)
+Mean_CI_Upper <- mean(CI95$upper)
+
+Mean_CI <- data.frame(Mean_CI_Lower,Target_Mean,Mean_CI_Upper)
+
+colnames(Mean_CI)[1] <- "Lower"
+colnames(Mean_CI)[2] <- "Mean"
+colnames(Mean_CI)[3] <- "Upper"
+
+datatable(round(Mean_CI,2), caption = "Mean Cost - round to 2 decimals")
+
+```
+
+```{r average cost for production}
+Total_Production_Cost <- round(Mean_CI * 400, 2)
+options(scipen=999)
+```
+
+> Therefore we can inform that the estimated price of production for all of the 400 solar panels is at `r Total_Production_Cost[1,2]`\$ and that with 95% certainty it should be in between `r Total_Production_Cost[1,1]`\$ and `r Total_Production_Cost[1,3]`\$. The price for the bid should therefore be calculated based on the mean value and the wanted profit on this sale. To have less risk and a higher chance to acutally reach the wanted profit the bid price could be calculated based on the upper value. 
+
+# References
+
+[What Is The Experience Curve And Why It Matters In Business](https://fourweekmba.com/experience-curve/)
+
+[Experience And Learning Curves](https://www.referenceforbusiness.com/management/Em-Exp/Experience-and-Learning-Curves.html#:~:text=By%20convention%2C%20we%20refer%20to,cost%20of%20direct%20labor%20hours)
+
+[Riding The Experience Curve](https://asc.army.mil/web/news-alt-jas17-riding-the-experience-curve/)
+
+[BILL BROOKFIELD Management Accounting](http://www.cimaglobal.com/documents/importeddocuments/fm_april_05_p44-47.pdf)
